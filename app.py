@@ -8,7 +8,8 @@ app = cdk.App()
 VRFStack(
     app,
     "VRFStack",
-    env=cdk.Environment(region=app.node.try_get_context("environment")["REGION"]),
+    env=cdk.Environment(region=app.node.try_get_context("environment")["AWS_REGION"]),
+    environment=app.node.try_get_context("environment"),
 )
 
 app.synth()

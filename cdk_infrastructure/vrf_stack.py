@@ -1,3 +1,5 @@
+import typing
+
 from aws_cdk import (
     Duration,
     Stack,
@@ -10,8 +12,15 @@ from constructs import Construct
 
 
 class VRFStack(Stack):
-    def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
+    def __init__(
+        self,
+        scope: Construct,
+        construct_id: str,
+        environment: typing.Optional[dict] = None,
+        **kwargs,
+    ) -> None:
         super().__init__(scope, construct_id, **kwargs)
+        environment = {} if environment is None else environment
 
         self.eventbridge_minute_scheduled_event = events.Rule(
             self,
@@ -36,3 +45,12 @@ class VRFStack(Stack):
                 handler=self.create_vrf_request_lambda, retry_attempts=0
             )
         )
+        powertools_layer = _lambda.LayerVersion.from_layer_version_arn(
+            self,
+            "aws_lambda_powertools",
+            layer_version_arn=(
+                f"arn:aws:lambda:{environment['AWS_REGION']}:"
+                "017000801446:layer:AWSLambdaPowertoolsPython:29"  # might consider getting latest layer
+            ),
+        )
+        self.create_vrf_request_lambda.add_layers(powertools_layer)

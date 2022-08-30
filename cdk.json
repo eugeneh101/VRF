@@ -1,6 +1,6 @@
 {
   "app": "python3 app.py",
   "context": {
-    "environment": {"REGION": "us-west-1"}
+    "environment": {"AWS_REGION": "us-west-1"}
   }
 }
