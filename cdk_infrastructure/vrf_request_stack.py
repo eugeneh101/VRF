@@ -4,6 +4,7 @@ from aws_cdk import (
     Duration,
     RemovalPolicy,
     Stack,
+    aws_dynamodb as dynamodb,
     aws_events as events,
     aws_events_targets as events_targets,
     aws_lambda as _lambda,
@@ -12,7 +13,7 @@ from aws_cdk import (
 from constructs import Construct
 
 
-class VRFStack(Stack):
+class VrfRequestStack(Stack):
     def __init__(
         self,
         scope: Construct,
@@ -26,35 +27,45 @@ class VRFStack(Stack):
         self.eventbridge_minute_scheduled_event = events.Rule(
             self,
             "RunEveryMinute",
-            event_bus=None,  # "default" bus
+            event_bus=None,  # "default" bus, though eventually put in its own Eventbridge bus
             schedule=events.Schedule.rate(Duration.minutes(1)),
         )
 
-        self.create_vrf_request_lambda = _lambda.Function(
+        self.vrf_request_lambda = _lambda.Function(
             self,
-            "CreateVrfRequestLambda",
+            "VrfRequestLambda",
             runtime=_lambda.Runtime.PYTHON_3_9,
             code=_lambda.Code.from_asset(
-                path="source/create_vrf_request_lambda",
-                exclude=[
-                    ".venv/*",  # exclude virtualenv
-                ],
+                path="source/vrf_request_lambda",
+                exclude=[".venv/*",],  # exclude virtualenv
             ),
             handler="handler.lambda_handler",
             timeout=Duration.seconds(1),  # should be effectively instantenous
         )
+
         self.request_queue = sqs.Queue(
             self,
             "RequestQueue",
             removal_policy=RemovalPolicy.DESTROY,
             retention_period=Duration.days(4),
-            visibility_timeout=Duration.seconds(30),
+            visibility_timeout=Duration.seconds(1),  # retry failed message quickly
+        )
+
+        self.dynamodb_table = dynamodb.Table(
+            self,
+            "RequestAndResponseTable",
+            partition_key=dynamodb.Attribute(
+                name="uuid", type=dynamodb.AttributeType.STRING
+            ),
+            # CDK wil not automatically deleted DynamoDB during `cdk destroy`
+            # (as DynamoDB is a stateful resource) unless explicitly specified by the following line
+            removal_policy=RemovalPolicy.DESTROY,
         )
 
         # dependencies:
         self.eventbridge_minute_scheduled_event.add_target(
             target=events_targets.LambdaFunction(
-                handler=self.create_vrf_request_lambda, retry_attempts=0
+                handler=self.vrf_request_lambda, retry_attempts=3
             )
         )
         powertools_layer = _lambda.LayerVersion.from_layer_version_arn(
@@ -65,12 +76,16 @@ class VRFStack(Stack):
                 "017000801446:layer:AWSLambdaPowertoolsPython:29"  # might consider getting latest layer
             ),
         )
-        self.create_vrf_request_lambda.add_layers(powertools_layer)
-        self.create_vrf_request_lambda.add_environment(
-            key="QUEUE", value=self.request_queue.queue_name
+        self.vrf_request_lambda.add_layers(powertools_layer)
+        self.vrf_request_lambda.add_environment(
+            key="QUEUE_NAME", value=self.request_queue.queue_name
         )
-        self.create_vrf_request_lambda.add_environment(
+        self.vrf_request_lambda.add_environment(
             key="AWSREGION",  # apparently "AWS_REGION" is not allowed as a Lambda env variable
             value=environment["AWS_REGION"],
         )
-        self.request_queue.grant_send_messages(self.create_vrf_request_lambda)
+        self.vrf_request_lambda.add_environment(
+            key="TABLE_NAME", value=self.dynamodb_table.table_name
+        )
+        self.request_queue.grant_send_messages(self.vrf_request_lambda)
+        self.dynamodb_table.grant_write_data(self.vrf_request_lambda)
