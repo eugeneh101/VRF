@@ -49,7 +49,7 @@ class VrfRequestStack(Stack):
             self,
             "RequestAndResponseTable",
             partition_key=dynamodb.Attribute(
-                name="uuid", type=dynamodb.AttributeType.STRING
+                name="unique_identifier", type=dynamodb.AttributeType.STRING
             ),
             sort_key=dynamodb.Attribute(
                 name="action", type=dynamodb.AttributeType.STRING

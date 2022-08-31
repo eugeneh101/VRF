@@ -46,7 +46,7 @@ def lambda_handler(
     )
     unique_identifier = str(uuid.uuid4())
     payload = {
-        "uuid": unique_identifier,
+        "unique_identifier": unique_identifier,
         "target_block_in_the_future": target_block_in_the_future,
         "min_random_value": min_random_value,
         "max_random_value": max_random_value,
@@ -59,15 +59,15 @@ def lambda_handler(
     request_time = (now + timedelta(seconds=request_arrival_time)).strftime(
         "%Y-%m-%d %H:%M:%S%z"
     )
-    expected_response_time = (
+    response_time_expected = (
         now + timedelta(seconds=request_arrival_time + target_block_in_the_future)
     ).strftime("%Y-%m-%d %H:%M:%S%z")
     dynamodb_table.put_item(
         Item={
-            "uuid": unique_identifier,
+            "unique_identifier": unique_identifier,
             "action": "request",
             "request_time": request_time,
-            "expected_response_time": expected_response_time,
+            "response_time_expected": response_time_expected,
             "min_random_value": min_random_value,
             "max_random_value": max_random_value,
         }
