@@ -2,6 +2,7 @@
 package-lock.json
 __pycache__
 .pytest_cache
+__lambda_dependencies__/
 .env
 .venv
 *.egg-info
