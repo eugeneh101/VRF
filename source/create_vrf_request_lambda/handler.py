@@ -1,20 +1,24 @@
 import json
 import random
 import os
-from typing import Union, Tuple
-from collections import namedtuple
+import sys
+from typing import Union, Any
+
+sys.path.insert(
+    0, "./__lambda_dependencies__"
+)  # folder created by Makefile during `cdk deploy`
 
 import boto3
 from aws_lambda_powertools.utilities.typing import LambdaContext
 from aws_lambda_powertools.logging import Logger
 from beartype import beartype
+from botocore.config import Config
 from dotenv import load_dotenv
-
 
 load_dotenv()
 logger = Logger(level="INFO")
-sqs_resource = boto3.resource("sqs")
-queue = sqs_resource.get_queue_by_name(QueueName=os.environ["queue"])
+sqs_resource = boto3.resource("sqs", config=Config(region_name=os.environ["AWSREGION"]))
+queue = sqs_resource.get_queue_by_name(QueueName=os.environ["QUEUE"])
 
 
 @logger.inject_lambda_context(log_event=True)
@@ -22,8 +26,9 @@ queue = sqs_resource.get_queue_by_name(QueueName=os.environ["queue"])
 def lambda_handler(
     event: dict,
     context: Union[
-        LambdaContext,  # LambdaContext is used in AWS
-        Tuple,  # Tuple is used in `scratch.py`
+        Any,
+        LambdaContext,  # AWS's `context` isn't precisely a `LambdaContext` instance
+        tuple,  # namedtuple is used in `scratch.py`
     ],
 ) -> None:
     request_arrival_time = random.randint(0, 120)

@@ -2,11 +2,12 @@ import typing
 
 from aws_cdk import (
     Duration,
+    RemovalPolicy,
     Stack,
     aws_events as events,
     aws_events_targets as events_targets,
     aws_lambda as _lambda,
-    # aws_sqs as sqs,
+    aws_sqs as sqs,
 )
 from constructs import Construct
 
@@ -35,10 +36,21 @@ class VRFStack(Stack):
             runtime=_lambda.Runtime.PYTHON_3_9,
             code=_lambda.Code.from_asset(
                 path="source/create_vrf_request_lambda",
-                exclude=[".venv/*"],  # exclude virtualenv
+                exclude=[
+                    ".venv/*",  # exclude virtualenv
+                ],
             ),
             handler="handler.lambda_handler",
+            timeout=Duration.seconds(1),  # should be effectively instantenous
         )
+        self.request_queue = sqs.Queue(
+            self,
+            "RequestQueue",
+            removal_policy=RemovalPolicy.DESTROY,
+            retention_period=Duration.days(4),
+            visibility_timeout=Duration.seconds(30),
+        )
+
         # dependencies:
         self.eventbridge_minute_scheduled_event.add_target(
             target=events_targets.LambdaFunction(
@@ -54,3 +66,11 @@ class VRFStack(Stack):
             ),
         )
         self.create_vrf_request_lambda.add_layers(powertools_layer)
+        self.create_vrf_request_lambda.add_environment(
+            key="QUEUE", value=self.request_queue.queue_name
+        )
+        self.create_vrf_request_lambda.add_environment(
+            key="AWSREGION",  # apparently "AWS_REGION" is not allowed as a Lambda env variable
+            value=environment["AWS_REGION"],
+        )
+        self.request_queue.grant_send_messages(self.create_vrf_request_lambda)
