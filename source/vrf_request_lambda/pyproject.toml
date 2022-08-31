@@ -10,8 +10,8 @@ beartype = "^0.10.4"
 python-dotenv = "^0.20.0"
 
 [tool.poetry.dev-dependencies]
-aws-lambda-powertools = "^1.28.0"
-boto3 = "^1.24.61"
+aws-lambda-powertools = "^1.28.0"  # CDK stack attaches `powertools` Lambda layer
+boto3 = "^1.24.61"  # Lambda already has `boto3` installed
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
