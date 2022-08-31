@@ -52,16 +52,21 @@ def lambda_handler(
         "max_random_value": max_random_value,
     }
     queue.send_message(
-        MessageBody=json.dumps(payload), DelaySeconds=request_arrival_time
+        MessageBody=json.dumps(payload),
+        DelaySeconds=request_arrival_time,  # message will not be immediately visible
     )
     now = datetime.utcnow()
-    expected_response_time = (now + timedelta(seconds=30)).strftime(
+    request_time = (now + timedelta(seconds=request_arrival_time)).strftime(
         "%Y-%m-%d %H:%M:%S%z"
     )
+    expected_response_time = (
+        now + timedelta(seconds=request_arrival_time + target_block_in_the_future)
+    ).strftime("%Y-%m-%d %H:%M:%S%z")
     dynamodb_table.put_item(
         Item={
             "uuid": unique_identifier,
-            "request_time": now.strftime("%Y-%m-%d %H:%M:%S%z"),
+            "action": "request",
+            "request_time": request_time,
             "expected_response_time": expected_response_time,
             "min_random_value": min_random_value,
             "max_random_value": max_random_value,
