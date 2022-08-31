@@ -1,18 +1,18 @@
 import json
-import random
 import os
+import random
 import sys
 import uuid
 from datetime import datetime, timedelta
-from typing import Union, Any
+from typing import Any, Union
 
 sys.path.insert(
     0, "./__lambda_dependencies__"
 )  # folder created by Makefile during `cdk deploy`
 
 import boto3
-from aws_lambda_powertools.utilities.typing import LambdaContext
 from aws_lambda_powertools.logging import Logger
+from aws_lambda_powertools.utilities.typing import LambdaContext
 from beartype import beartype
 from botocore.config import Config
 from dotenv import load_dotenv
