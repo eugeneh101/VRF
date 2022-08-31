@@ -51,6 +51,11 @@ class VrfRequestStack(Stack):
             partition_key=dynamodb.Attribute(
                 name="uuid", type=dynamodb.AttributeType.STRING
             ),
+            sort_key=dynamodb.Attribute(
+                name="action", type=dynamodb.AttributeType.STRING
+            ),
+            time_to_live_attribute="expiration",  # when to automatically delete record
+            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,  # can handle burst entries
             # CDK wil not automatically deleted DynamoDB during `cdk destroy`
             # (as DynamoDB is a stateful resource) unless explicitly specified by the following line
             removal_policy=RemovalPolicy.DESTROY,
