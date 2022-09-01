@@ -1,7 +1,7 @@
 from aws_cdk import (
     Duration,
+    NestedStack,
     RemovalPolicy,
-    Stack,
     aws_dynamodb as dynamodb,
     aws_events as events,
     aws_events_targets as events_targets,
@@ -11,12 +11,11 @@ from aws_cdk import (
 from constructs import Construct
 
 
-class VrfRequestStack(Stack):
+class VrfRequestStack(NestedStack):
     def __init__(
         self, scope: Construct, construct_id: str, environment: dict, **kwargs,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
-        environment = {} if environment is None else environment
 
         self.eventbridge_minute_scheduled_event = events.Rule(
             self,

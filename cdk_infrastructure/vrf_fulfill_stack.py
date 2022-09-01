@@ -1,6 +1,6 @@
 from aws_cdk import (
     Duration,
-    Stack,
+    NestedStack,
     aws_dynamodb as dynamodb,
     aws_lambda as _lambda,
     aws_lambda_event_sources as lambda_event_sources,
@@ -11,7 +11,7 @@ from aws_cdk import (
 from constructs import Construct
 
 
-class VrfFulfillStack(Stack):
+class VrfFulfillStack(NestedStack):
     def __init__(
         self,
         scope: Construct,
@@ -22,7 +22,6 @@ class VrfFulfillStack(Stack):
         **kwargs,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
-        environment = {} if environment is None else environment
 
         self.trigger_sfn_lambda = _lambda.Function(
             self,
@@ -67,7 +66,6 @@ class VrfFulfillStack(Stack):
             self,
             "FulfillVrfRequest",
             lambda_function=self.vrf_fulfill_lambda,
-            payload=sfn.TaskInput.from_json_path_at("$"),
             payload_response_only=True,  # don't want Lambda invocation metadata
         )
         sfn_definition = sleep_until_target_block.next(fulfill_vrf_request)
