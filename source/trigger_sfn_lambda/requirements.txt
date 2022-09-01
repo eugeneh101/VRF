@@ -1,0 +1,2 @@
+beartype==0.10.4; python_full_version >= "3.6.0"
+python-dotenv==0.20.0; python_version >= "3.5"
