@@ -27,7 +27,7 @@ class VrfRequestStack(Stack):
 
         self.vrf_request_lambda = _lambda.Function(
             self,
-            "VrfRequestLambda",
+            "VrfRequest",
             runtime=_lambda.Runtime.PYTHON_3_9,
             code=_lambda.Code.from_asset(
                 path="source/vrf_request_lambda",

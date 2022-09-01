@@ -59,7 +59,7 @@ def lambda_handler(
     request_time = (now + timedelta(seconds=request_arrival_time)).strftime(
         "%Y-%m-%d %H:%M:%S%z"
     )
-    response_time_expected = (
+    fulfill_time_expected = (
         now + timedelta(seconds=request_arrival_time + target_block_in_the_future)
     ).strftime("%Y-%m-%d %H:%M:%S%z")
     dynamodb_table.put_item(
@@ -67,7 +67,7 @@ def lambda_handler(
             "unique_identifier": unique_identifier,
             "action": "request",
             "request_time": request_time,
-            "response_time_expected": response_time_expected,
+            "fulfill_time_expected": fulfill_time_expected,
             "min_random_value": min_random_value,
             "max_random_value": max_random_value,
         }
