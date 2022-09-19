@@ -75,6 +75,14 @@ class VrfFulfillStack(NestedStack):
             payload_response_only=True,  # don't want Lambda invocation metadata
             retry_on_service_exceptions=False,  # don't want the weird default retries
         ).add_retry(max_attempts=3)
+        ### alternate solution to evaluate simple expressions; it creates a Lambda function
+        # decrement_wait_time = sfn_tasks.EvaluateExpression(
+        #     self,
+        #     "DecrementWaitTimeLambda",
+        #     expression=f"$.wait_time - {environment['WAIT_TIME_IN_SECONDS']}",
+        #     runtime=_lambda.Runtime.NODEJS_14_X,  # currently Python is not supported
+        #     result_path="$.wait_time",
+        # )
         assert isinstance(
             environment["WAIT_TIME_IN_SECONDS"], (int, float)
         ), f'"WAIT_TIME_IN_SECONDS" should be a number. It is {environment["WAIT_TIME_IN_SECONDS"]}'
@@ -94,7 +102,7 @@ class VrfFulfillStack(NestedStack):
         ).add_retry(max_attempts=3)
         is_wait_time_still_positive = sfn.Choice(self, "IsWaitTimeStillPositive")
         sleep_loop = is_wait_time_still_positive.when(
-            sfn.Condition.number_greater_than_equals("$.wait_time", 0),
+            sfn.Condition.number_greater_than("$.wait_time", 0),
             sleep_for_X_seconds.next(decrement_wait_time).next(
                 is_wait_time_still_positive
             ),
