@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "decrement_wait_time_lambda"
+version = "0.1.0"
+description = ""
+authors = ["Eugene"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+beartype = "^0.11.0"
+
+[tool.poetry.dev-dependencies]
+aws-lambda-powertools = "^1.29.1"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

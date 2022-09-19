@@ -25,14 +25,25 @@ class VrfFulfillStack(NestedStack):
 
         self.trigger_sfn_lambda = _lambda.Function(
             self,
-            "TriggerSfnLambda",
+            "TriggerStepFunction",
             runtime=_lambda.Runtime.PYTHON_3_9,
             code=_lambda.Code.from_asset(
                 path="source/trigger_sfn_lambda",
                 exclude=[".venv/*"],  # exclude virtualenv
             ),
             handler="handler.lambda_handler",
-            timeout=Duration.seconds(1),  # should be effectively instantenous
+            timeout=Duration.seconds(1),  # should be effectively instantaneous
+        )
+        self.decrement_wait_time_lambda = _lambda.Function(
+            self,
+            "DecrementWaitTime",
+            runtime=_lambda.Runtime.PYTHON_3_9,
+            code=_lambda.Code.from_asset(
+                path="source/decrement_wait_time_lambda",
+                exclude=[".venv/*"],  # exclude virtualenv
+            ),
+            handler="handler.lambda_handler",
+            timeout=Duration.seconds(1),  # should be effectively instantaneous
         )
         self.vrf_fulfill_lambda = _lambda.Function(
             self,
@@ -43,7 +54,7 @@ class VrfFulfillStack(NestedStack):
                 exclude=[".venv/*"],  # exclude virtualenv
             ),
             handler="handler.lambda_handler",
-            timeout=Duration.seconds(1),  # should be effectively instantenous
+            timeout=Duration.seconds(1),  # should be effectively instantaneous
         )
         powertools_layer = _lambda.LayerVersion.from_layer_version_arn(
             self,
@@ -57,20 +68,40 @@ class VrfFulfillStack(NestedStack):
         # Step Function can wait up to 1 year
         # Would need some way of determining block for block number very far away
         # Could use DynamoDB for this
-        sleep_until_target_block = sfn.Wait(
+        decrement_wait_time = sfn_tasks.LambdaInvoke(
             self,
-            "SleepUntilTargetBlock",
-            time=sfn.WaitTime.timestamp_path("$.target_block_time"),
+            "DecrementWaitTimeLambda",
+            lambda_function=self.decrement_wait_time_lambda,
+            payload_response_only=True,  # don't want Lambda invocation metadata
+            retry_on_service_exceptions=False,  # don't want the weird default retries
+        ).add_retry(max_attempts=3)
+        assert isinstance(
+            environment["WAIT_TIME_IN_SECONDS"], (int, float)
+        ), f'"WAIT_TIME_IN_SECONDS" should be a number. It is {environment["WAIT_TIME_IN_SECONDS"]}'
+        sleep_for_X_seconds = sfn.Wait(
+            self,
+            "SleepForXSeconds",
+            time=sfn.WaitTime.duration(
+                Duration.seconds(environment["WAIT_TIME_IN_SECONDS"])
+            ),
         )
         fulfill_vrf_request = sfn_tasks.LambdaInvoke(
             self,
-            "FulfillVrfRequest",
+            "FulfillVrfRequestLambda",
             lambda_function=self.vrf_fulfill_lambda,
             payload_response_only=True,  # don't want Lambda invocation metadata
+            retry_on_service_exceptions=False,  # don't want the weird default retries
+        ).add_retry(max_attempts=3)
+        is_wait_time_still_positive = sfn.Choice(self, "IsWaitTimeStillPositive")
+        sleep_loop = is_wait_time_still_positive.when(
+            sfn.Condition.number_greater_than_equals("$.wait_time", 0),
+            sleep_for_X_seconds.next(decrement_wait_time).next(
+                is_wait_time_still_positive
+            ),
         )
-        sfn_definition = sleep_until_target_block.next(fulfill_vrf_request)
+        sfn_definition = sleep_loop.otherwise(fulfill_vrf_request)
         self.state_machine = sfn.StateMachine(
-            self, "WaitAndFulfillVrfRequest", definition=sfn_definition
+            self, "WaitAndFulfillVrfRequestLambda", definition=sfn_definition
         )
 
         # dependencies
@@ -91,6 +122,11 @@ class VrfFulfillStack(NestedStack):
         self.state_machine.grant_start_execution(self.trigger_sfn_lambda)
         dynamodb_table.grant_write_data(self.trigger_sfn_lambda)
 
+        self.decrement_wait_time_lambda.add_layers(powertools_layer)
+        self.decrement_wait_time_lambda.add_environment(
+            key="WAIT_TIME_IN_SECONDS", value=str(environment["WAIT_TIME_IN_SECONDS"])
+        )
+
         self.vrf_fulfill_lambda.add_layers(powertools_layer)
         self.vrf_fulfill_lambda.add_environment(
             key="AWSREGION",  # apparently "AWS_REGION" is not allowed as a Lambda env variable
@@ -106,4 +142,3 @@ class VrfFulfillStack(NestedStack):
 # make SQS a FIFO queue? Is double fulfillment bad?
 # make DLQ?
 # create 'expiration' attribute for TTL?
-# figure out nested stack

@@ -1,7 +1,7 @@
 import json
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any, Union
 
 sys.path.insert(
@@ -46,12 +46,8 @@ def lambda_handler(
             "failed_fulfill_attempts": 0,
         }
     )
-    target_block_time = (
-        datetime.utcnow()
-        + timedelta(seconds=parsed_event["target_block_in_the_future"])
-    ).strftime("%Y-%m-%dT%H:%M:%SZ")
     payload = {
-        "target_block_time": target_block_time,
+        "wait_time": parsed_event["target_block_in_the_future"],
         "unique_identifier": parsed_event["unique_identifier"],
         "min_random_value": parsed_event["min_random_value"],
         "max_random_value": parsed_event["max_random_value"],
