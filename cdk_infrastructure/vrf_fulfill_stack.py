@@ -74,7 +74,10 @@ class VrfFulfillStack(NestedStack):
             lambda_function=self.decrement_wait_time_lambda,
             payload_response_only=True,  # don't want Lambda invocation metadata
             retry_on_service_exceptions=False,  # don't want the weird default retries
-        ).add_retry(max_attempts=3)
+        ).add_retry(
+            max_attempts=3,
+            interval=Duration.seconds(0),  # instant retries without exponential backoff
+        )
         ### alternate solution to evaluate simple expressions; it creates a Lambda function
         # decrement_wait_time = sfn_tasks.EvaluateExpression(
         #     self,
@@ -99,7 +102,10 @@ class VrfFulfillStack(NestedStack):
             lambda_function=self.vrf_fulfill_lambda,
             payload_response_only=True,  # don't want Lambda invocation metadata
             retry_on_service_exceptions=False,  # don't want the weird default retries
-        ).add_retry(max_attempts=3)
+        ).add_retry(
+            max_attempts=3,
+            interval=Duration.seconds(0),  # instant retries without exponential backoff
+        )
         is_wait_time_still_positive = sfn.Choice(self, "IsWaitTimeStillPositive")
         sleep_loop = is_wait_time_still_positive.when(
             sfn.Condition.number_greater_than("$.wait_time", 0),
